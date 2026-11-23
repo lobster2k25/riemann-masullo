@@ -440,12 +440,8 @@ theorem sLocalAbsolutePW_seqDense {S₀ : Finset (HeightOneSpectrum (𝓞 F))}
 The global Fourier transform of the global insertion of an S-local test vanishes at every
 adele where the S-local Fourier transform vanishes at the projection, and at every adele
 having a coordinate outside S beyond a fixed bound. The bounds are at least one and equal
-to one at all but finitely many places.
-The proof would integrate over the integer tail: translation by the omitted integer rings
-leaves the inserted test invariant, so the transform vanishes off the annihilator of those
-rings, and on the annihilator the tail integrates to a positive constant
-(compare `tamagawaFourier_sAdeleLift` in `AppA_AlgebraicNT/Sec3.lean`, where the bound is
-the absolute norm of the place raised to the exponent of the different). -/
+to one at all but finitely many places: the absolute norm of the place raised to the
+exponent of the different, as in `tamagawaFourier_sAdeleLift`. -/
 private theorem sLocalAbsolutePW_globalSupport_fourier {F : Type*} [Field F] [NumberField F]
     (S : Finset (HeightOneSpectrum (𝓞 F))) :
     ∃ D : HeightOneSpectrum (𝓞 F) → ℝ, (∀ v, 1 ≤ D v) ∧ (mulSupport D).Finite ∧
@@ -453,7 +449,37 @@ private theorem sLocalAbsolutePW_globalSupport_fourier {F : Type*} [Field F] [Nu
         adeleSchwartzFourier (sAdeleSchwartzToGlobal F S h) (Multiplicative.ofAdd y) ≠ 0 →
           sAdeleSchwartzFourier h (Multiplicative.ofAdd (adeleProjection F S y)) ≠ 0 ∧
             ∀ v, v ∉ S → ‖y.2 v‖ ≤ D v := by
-  sorry
+  classical
+  let : MeasurableSpace (AdeleRing (𝓞 F) F) := borel _
+  let : MeasurableSpace (SAdeleRing F S) := instMeasurableSpaceSAdeleRing F S
+  obtain ⟨c, -, -, hm, -⟩ := sAdeleProjection_dual_masses F S
+  refine ⟨fun v ↦ (v.asIdeal.absNorm : ℝ) ^ multiplicity v.asIdeal (differentIdeal ℤ (𝓞 F)),
+    fun v ↦ one_le_pow₀ (by exact_mod_cast (HeightOneSpectrum.one_lt_absNorm v).le), ?_, ?_⟩
+  · refine (Ideal.finite_factors (differentIdeal_ne_bot (A := ℤ) (B := 𝓞 F))).subset
+      fun v hv ↦ ?_
+    by_contra hd
+    apply hv
+    simp only [multiplicity_eq_zero_of_not_dvd hd, pow_zero]
+  · intro h y hy
+    have hLift : (fun x ↦ sAdeleSchwartzToGlobal F S h (Multiplicative.ofAdd x)) =
+        (integralAdelesOutside F S : Set (AdeleRing (𝓞 F) F)).indicator
+          ((fun x ↦ h (Multiplicative.ofAdd x)) ∘ adeleProjection F S) := by
+      funext x
+      rw [sAdeleSchwartzToGlobal_apply]
+      simp only [Set.indicator, SetLike.mem_coe, integralTail_iff, Function.comp_apply]
+    have hF := congrFun (tamagawaFourier_sAdeleLift F S c hm
+      (fun x ↦ h (Multiplicative.ofAdd x)) (partialTensor_integrable F S h)) y
+    change tamagawaFourier _ _
+      (fun x ↦ sAdeleSchwartzToGlobal F S h (Multiplicative.ofAdd x)) y ≠ 0 at hy
+    rw [hLift, hF] at hy
+    by_cases hmem : y ∈ sAdeleTailDual F S
+    · rw [Set.indicator_of_mem hmem] at hy
+      refine ⟨fun h0 ↦ hy ?_, fun v hv ↦ hmem v hv⟩
+      change ((c : ℝ) • sAdeleSchwartzFourier h
+        (Multiplicative.ofAdd (adeleProjection F S y))) = 0
+      rw [h0, smul_zero]
+    · rw [Set.indicator_of_notMem hmem] at hy
+      exact absurd rfl hy
 
 /-- An idele whose S-coordinates lie in the S-product region of size `Y` and whose other
 finite coordinates are bounded by `D` has idelic norm at most `Y` times the product of `D`. -/
